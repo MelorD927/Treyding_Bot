@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 
 # --- SOZLAMALAR ---
-API_TOKEN = '8176485041:AAHqdq2QtQbJnh_oJSGas5zqBIvZYU1bxS1s'
+API_TOKEN = '8176485041:AAHOcooQBvWgC0sxdbebJpOKnY8ab1zsHy4'
 NEWS_API_KEY = '632332ae0c46482b96f51b05a1609773'
 
 logging.basicConfig(level=logging.INFO)
@@ -119,3 +119,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
