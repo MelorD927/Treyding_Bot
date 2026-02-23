@@ -9,7 +9,7 @@ from aiogram.filters import Command
 
 # --- SOZLAMALAR ---
 PORT = int(os.environ.get("PORT", 8080))
-API_TOKEN = '8176485041:AAHOcooQBvWgC0sxdbebJpOKnY8ab1zsHy4'
+API_TOKEN = '8176485041:AAFg3EDZ4REWNgF0uqIuY0KE5eYewqH0YyI'
 NEWS_API_KEY = '632332ae0c46482b96f51b05a1609773'
 
 logging.basicConfig(level=logging.INFO)
@@ -127,3 +127,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
