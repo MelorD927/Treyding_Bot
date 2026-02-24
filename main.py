@@ -4,7 +4,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 
 # --- KONFIGURATSIYA ---
-API_TOKEN = '8176485041:AAE2hNeTPlp4I5kCqWXTjQEOaMAPd4hmW-U'
+API_TOKEN = '8176485041:AAF5_DipZmFT3w5S5SLpI0QWnfbY4UPirvI'
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
@@ -86,4 +86,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
