@@ -1,10 +1,6 @@
 import asyncio
-import logging
 import requests
 import random
-import pandas as pd  # Ma'lumotlar bilan ishlash uchun eng kuchli kutubxona
-import pytz          # Vaqt zonalarini aniq hisoblash uchun
-from datetime import datetime
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 
@@ -15,99 +11,89 @@ NEWS_API_KEY = '5a70717208154109867011d871788220'
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# --- PROFESSIONAL TAHLIL FUNKSIYALARI ---
+# --- TAHLIL FUNKSIYASI (PANDAS-SIZ) ---
 
-def get_technical_signal(symbol, is_forex=False):
-    """Moving Average va Volatility asosida professional signal"""
+def get_signal(symbol, is_forex=False):
     try:
-        # Tilla uchun PAXG, Kripto uchun o'z symbol'i
-        api_symbol = "PAXGUSDT" if symbol == "XAUUSD" else symbol
-        url = f"https://api.binance.com/api/v3/klines?symbol={api_symbol}&interval=1h&limit=50"
+        # Tilla uchun PAXG, boshqalar uchun o'z symboli
+        api_symbol = "PAXGUSDT" if "XAU" in symbol else symbol
+        url = f"https://api.binance.com/api/v3/klines?symbol={api_symbol}&interval=1h&limit=20"
         res = requests.get(url, timeout=10).json()
         
-        # Pandas orqali ma'lumotlarni tahlil qilish
-        df = pd.DataFrame(res, columns=['time', 'open', 'high', 'low', 'close', 'vol', 'close_time', 'q_vol', 'trades', 'tb_base', 'tb_quote', 'ignore'])
-        df['close'] = df['close'].astype(float)
-        
-        current_price = df['close'].iloc[-1]
-        ma_fast = df['close'].rolling(window=10).mean().iloc[-1]
-        ma_slow = df['close'].rolling(window=20).mean().iloc[-1]
-        
-        # Signal mantiqi: Fast MA Slow MA'dan yuqorida bo'lsa - Trend tepaga
-        if ma_fast > ma_slow:
-            status = "🟢 BUY (Kuchli trend)"
-            tp = current_price * (1.02 if not is_forex else 1.005)
-            sl = current_price * (0.99 if not is_forex else 0.997)
+        closes = [float(c[4]) for c in res]
+        current = closes[-1]
+        ma = sum(closes) / len(closes) # O'rtacha narx (MA20)
+
+        # Signal mantiqi
+        if current < ma:
+            status = "🟢 BUY (Sotib oling)"
+            tp = current * (1.03 if not is_forex else 1.005)
+            sl = current * (0.98 if not is_forex else 0.997)
         else:
-            status = "🔴 SELL (Pasayish trendi)"
-            tp = current_price * (0.98 if not is_forex else 0.995)
-            sl = current_price * (1.01 if not is_forex else 1.003)
-            
-        name = "🌕 XAU/USD (Gold)" if symbol == "XAUUSD" else f"💎 {symbol}"
+            status = "🔴 SELL (Soting)"
+            tp = current * (0.97 if not is_forex else 0.995)
+            sl = current * (1.02 if not is_forex else 1.003)
+
+        name = "🌕 XAU/USD (Gold)" if "XAU" in symbol else f"💎 {symbol}"
         return (f"{name} **Tahlili**\n\n"
                 f"📊 Signal: {status}\n"
-                f"🎯 Hozirgi narx: {current_price:,.2f}\n"
+                f"🎯 Hozirgi narx: {current:,.2f}\n"
                 f"✅ Take-Profit: {tp:,.2f}\n"
-                f"🛑 Stop-Loss: {sl:,.2f}\n"
-                f"📈 MA10: {ma_fast:,.2f} | MA20: {ma_slow:,.2f}")
-    except Exception as e:
-        return f"⚠️ Tahlil qilishda xatolik: {str(e)}"
+                f"🛑 Stop-Loss: {sl:,.2f}")
+    except:
+        return "⚠️ Ma'lumot olishda xatolik. Keyinroq urinib ko'ring."
 
 # --- MENYULAR ---
 
 def main_menu():
-    kb = [
+    return types.ReplyKeyboardMarkup(keyboard=[
         [types.KeyboardButton(text="💰 Narxlar"), types.KeyboardButton(text="🚨 Signallar")],
-        [types.KeyboardButton(text="🌍 Yangiliklar"), types.KeyboardButton(text="📈 Bozor Tahlili")],
-        [types.KeyboardButton(text="🇺🇿 Valyuta Kursi"), types.KeyboardButton(text="🔝 Top 5 Kripto")],
-        [types.KeyboardButton(text="🕒 Birja Vaqti")]
-    ]
-    return types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+        [types.KeyboardButton(text="🌍 Yangiliklar"), types.KeyboardButton(text="📈 Tahlil")],
+        [types.KeyboardButton(text="🇺🇿 Valyuta Kursi"), types.KeyboardButton(text="🔝 Top 5 Kripto")]
+    ], resize_keyboard=True)
 
-def signal_category_menu():
-    kb = [
+def signal_menu():
+    return types.ReplyKeyboardMarkup(keyboard=[
         [types.KeyboardButton(text="🪙 Kripto Signallar"), types.KeyboardButton(text="💱 Forex Signallar")],
         [types.KeyboardButton(text="⬅️ Orqaga")]
-    ]
-    return types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+    ], resize_keyboard=True)
 
-def forex_list_menu():
-    kb = [
+def forex_list():
+    return types.ReplyKeyboardMarkup(keyboard=[
         [types.KeyboardButton(text="🌕 XAU/USD (GOLD)"), types.KeyboardButton(text="🇪🇺 EUR/USD")],
         [types.KeyboardButton(text="⬅️ Signallarga qaytish")]
-    ]
-    return types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
-
-# (Boshqa menyular avvalgi koddagidek qoladi...)
+    ], resize_keyboard=True)
 
 # --- HANDLERS ---
 
 @dp.message(Command("start"))
-async def start_cmd(m: types.Message):
-    await m.answer("🔥 **WinnerMaster PRO** terminali ishga tushdi. Kuchli tahlil tizimi yoniq.", reply_markup=main_menu())
+async def start(m: types.Message):
+    await m.answer("🚀 WinnerMaster PRO tayyor! Tanlang:", reply_markup=main_menu())
 
 @dp.message(F.text == "🚨 Signallar")
 async def sig_cat(m: types.Message):
-    await m.answer("Signal bo'limini tanlang:", reply_markup=signal_category_menu())
+    await m.answer("Signal bo'limini tanlang:", reply_markup=signal_menu())
 
 @dp.message(F.text == "💱 Forex Signallar")
-async def forex_list(m: types.Message):
-    await m.answer("Forex yoki Metalni tanlang:", reply_markup=forex_list_menu())
+async def fx_list(m: types.Message):
+    await m.answer("Forex yoki Metalni tanlang:", reply_markup=forex_list())
 
 @dp.message(F.text == "🌕 XAU/USD (GOLD)")
-async def gold_signal(m: types.Message):
-    res = get_technical_signal("XAUUSD", is_forex=True)
-    await m.answer(res, parse_mode="Markdown")
+async def gold_sig(m: types.Message):
+    await m.answer(get_signal("XAUUSD", is_forex=True), parse_mode="Markdown")
+
+@dp.message(F.text == "⚡️ BTC/USDT")
+async def btc_sig(m: types.Message):
+    await m.answer(get_signal("BTCUSDT"), parse_mode="Markdown")
 
 @dp.message(F.text == "⬅️ Signallarga qaytish")
-async def back_to_sig(m: types.Message):
-    await m.answer("Signallar bo'limi:", reply_markup=signal_category_menu())
+async def back_sig(m: types.Message):
+    await m.answer("Signallar bo'limi:", reply_markup=signal_menu())
 
 @dp.message(F.text == "⬅️ Orqaga")
-async def back_to_main(m: types.Message):
+async def back_main(m: types.Message):
     await m.answer("Asosiy menyu:", reply_markup=main_menu())
 
-# --- BOTNI ISHGA TUSHIRISH ---
 async def main():
     await dp.start_polling(bot)
 
